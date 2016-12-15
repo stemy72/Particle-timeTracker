@@ -1,0 +1,112 @@
+// This #include statement was automatically added by the Particle IDE.
+// This is a program to trac time elapsed since a button is unnpresed, and display the time and elapsed time on a 16x2 lcd display (1602a)
+#include "SparkTime/SparkTime.h"
+#include "application.h"
+//#include "SparkTime/SparkTime.h"
+#include "LiquidCrystal.h"
+//#include "LiquidCrystal/LiquidCrystal.h"
+
+LiquidCrystal lcd(D0, D1, D2, D3, D4, D5);
+
+
+UDP UDPClient;
+SparkTime rtc;
+
+
+
+unsigned long currentTime;
+unsigned long lastTime = 0UL;
+String timeStr;
+
+unsigned long pause;
+unsigned long start;
+unsigned long timeUsed;
+unsigned long lastStatus;
+String forrigeAktivitet;
+String ongoingActivity;
+
+
+void setup() {
+    rtc.begin(&UDPClient, "north-america.pool.ntp.org");
+    rtc.setTimeZone(+1); // gmt offset
+  // set up the LCD's number of columns and rows: 
+    lcd.begin(16,2);
+    start = rtc.now();
+    lastStatus = 0;
+    forrigeAktivitet = "Spill";
+    ongoingActivity = "Pause";
+    
+    Particle.function("spill",spillToggle);
+}
+
+
+void loop() {
+  
+  // set the cursor to column 4, line 0 and print time
+  lcd.setCursor(4, 0);
+  currentTime = rtc.now();
+    if (currentTime != lastTime) {
+	timeStr = "";
+	timeStr += rtc.hourString(currentTime);
+	timeStr += ":";
+	timeStr += rtc.minuteString(currentTime);
+    timeStr += ":";
+    timeStr += rtc.secondString(currentTime);	
+	
+	lcd.print(timeStr);
+	
+	if ((rtc.minute(currentTime)- lastStatus) > 1 ){
+	        Particle.publish("Action",rtc.hourString(currentTime)+":"+rtc.minuteString(currentTime));
+	    lastStatus = rtc.minute(currentTime);
+	}
+      
+// check sensor to detect change, this trigers the timer
+    if (analogRead(0) < 3500) {
+      ongoingActivity = "Pause";
+      start = rtc.now();
+       //  Particle.publish("Action",rtc.minuteString(currentTime));
+       rtc.setTimeZone(0); // gmt offset
+      lcd.setCursor(1,1);
+      timeUsed = (rtc.now()-pause);
+      timeStr = "Pause: ";
+      
+      timeStr += rtc.hourString(timeUsed);  // ********* Why does this line display "01" when initiatd from 0?
+	  timeStr += ":";
+	  timeStr += rtc.minuteString(timeUsed); // ******** this is corretly showing "00" from initiation.
+	  timeStr += ":";
+	  timeStr += rtc.secondString(timeUsed); // ******** this is corretly showing "00" from initiation.
+	
+	  lcd.print(timeStr);
+      
+       rtc.setTimeZone(+1); // gmt offset
+      
+      } else {
+   // used for debuging 
+   // lcd.setCursor(10, 1);
+   //lcd.print(analogRead(0));
+  ongoingActivity = "Spill";
+  pause = rtc.now();
+// Print timeUsed since trigger started
+ rtc.setTimeZone(0); // gmt offset
+      lcd.setCursor(1,1);
+      timeUsed = (rtc.now()-start);
+      timeStr = "Spill: ";
+      
+      timeStr += rtc.hourString(timeUsed);  // ********* Why does this line display "01" when initiatd from 0?
+	  timeStr += ":";
+	  timeStr += rtc.minuteString(timeUsed); // ******** this is corretly showing "00" from initiation.
+	  timeStr += ":";
+	  timeStr += rtc.secondString(timeUsed); // ******** this is corretly showing "00" from initiation.
+	
+	  lcd.print(timeStr);
+      }
+       rtc.setTimeZone(+1); // gmt offset
+    
+      lastTime = currentTime;
+      if(ongoingActivity!=forrigeAktivitet){
+        forrigeAktivitet = ongoingActivity;
+         Particle.publish("Action",timeStr);
+    }
+    }    
+ //   }
+}
