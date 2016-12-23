@@ -21,7 +21,16 @@ String timeStr;
 unsigned long pause;
 unsigned long start;
 unsigned long timeUsed;
+unsigned long timeUsedPlay;
+unsigned long timeUsedPlayTotal;
 unsigned long lastStatus;
+unsigned long lastHourStatusUpdate;
+int playedMin;
+int playedMinTotal;
+int playedHours;
+int playedHoursTotal;
+int previousMin;
+int previousHour;
 String forrigeAktivitet;
 String ongoingActivity;
 
@@ -35,78 +44,125 @@ void setup() {
     lastStatus = 0;
     forrigeAktivitet = "Spill";
     ongoingActivity = "Pause";
+    timeUsedPlayTotal= 0;
+    timeUsedPlay= 0;
+    //playedMinTotal = 58;
     
-    Particle.function("spill",spillToggle);
+    //Particle.function("spill",spillToggle);
 }
 
 
 void loop() {
   
   // set the cursor to column 4, line 0 and print time
-  lcd.setCursor(4, 0);
+  lcd.setCursor(0, 0);
   currentTime = rtc.now();
     if (currentTime != lastTime) {
-	timeStr = "";
-	timeStr += rtc.hourString(currentTime);
-	timeStr += ":";
-	timeStr += rtc.minuteString(currentTime);
-    timeStr += ":";
-    timeStr += rtc.secondString(currentTime);	
-	
-	lcd.print(timeStr);
-	
-	if ((rtc.minute(currentTime)- lastStatus) > 1 ){
-	        Particle.publish("Action",rtc.hourString(currentTime)+":"+rtc.minuteString(currentTime));
-	    lastStatus = rtc.minute(currentTime);
-	}
+  timeStr = "";
+  timeStr += rtc.hourString(currentTime);
+  timeStr += ":";
+  timeStr += rtc.minuteString(currentTime);
+  // timeStr += ":";
+  // timeStr += rtc.secondString(currentTime);  
+  
+  lcd.print(timeStr);
+  
+  if ((rtc.minute(currentTime)- lastStatus) > 10 ){
+          Particle.publish("Action",rtc.hourString(currentTime)+":"+rtc.minuteString(currentTime));
+      lastStatus = rtc.minute(currentTime);
+  }
       
 // check sensor to detect change, this trigers the timer
     if (analogRead(0) < 3500) {
       ongoingActivity = "Pause";
       start = rtc.now();
        //  Particle.publish("Action",rtc.minuteString(currentTime));
-       rtc.setTimeZone(0); // gmt offset
-      lcd.setCursor(1,1);
+      rtc.setTimeZone(0); // gmt offset
+      lcd.setCursor(0,1);
       timeUsed = (rtc.now()-pause);
-      timeStr = "Pause: ";
+      timeStr = "Pause:  ";
       
       timeStr += rtc.hourString(timeUsed);  // ********* Why does this line display "01" when initiatd from 0?
-	  timeStr += ":";
-	  timeStr += rtc.minuteString(timeUsed); // ******** this is corretly showing "00" from initiation.
-	  timeStr += ":";
-	  timeStr += rtc.secondString(timeUsed); // ******** this is corretly showing "00" from initiation.
-	
-	  lcd.print(timeStr);
-      
+    timeStr += ":";
+    timeStr += rtc.minuteString(timeUsed); // ******** this is corretly showing "00" from initiation.
+    timeStr += ":";
+    timeStr += rtc.secondString(timeUsed); // ******** this is corretly showing "00" from initiation.
+  
+    lcd.print(timeStr);
+    
+    //playedMinTotal = playedMin + playedMinTotal;
+    //playedHoursTotal = playedHours + playedHoursTotal;
+   /* while (playedMinTotal > 59)
+    {
+         playedHoursTotal = playedHoursTotal + 1;
+         playedMinTotal = playedMinTotal-60;
+    } */
+    
+    playedHours = 0;
+    playedMin = 0;
+    timeUsedPlayTotal = timeUsedPlayTotal + timeUsedPlay;
+    timeUsedPlay=0;
+    
+     lcd.setCursor(6, 0);
+     lcd.print("Tot: ");
+     if (rtc.hour(timeUsedPlayTotal) < 10) {
+          lcd.print("0");}
+      lcd.print(rtc.hour(timeUsedPlayTotal));
+      lcd.print(":");
+      if (rtc.minute(timeUsedPlayTotal) < 10) {
+            lcd.print("0");}
+            
+      lcd.print(rtc.minute(timeUsedPlayTotal));
+     
        rtc.setTimeZone(+1); // gmt offset
       
       } else {
-   // used for debuging 
-   // lcd.setCursor(10, 1);
-   //lcd.print(analogRead(0));
   ongoingActivity = "Spill";
   pause = rtc.now();
 // Print timeUsed since trigger started
  rtc.setTimeZone(0); // gmt offset
-      lcd.setCursor(1,1);
+      lcd.setCursor(0,1);
       timeUsed = (rtc.now()-start);
-      timeStr = "Spill: ";
+      timeUsedPlay = (rtc.now()-start);
       
-      timeStr += rtc.hourString(timeUsed);  // ********* Why does this line display "01" when initiatd from 0?
-	  timeStr += ":";
-	  timeStr += rtc.minuteString(timeUsed); // ******** this is corretly showing "00" from initiation.
-	  timeStr += ":";
-	  timeStr += rtc.secondString(timeUsed); // ******** this is corretly showing "00" from initiation.
-	
-	  lcd.print(timeStr);
+      timeStr = "Spill:  ";
+      timeStr += rtc.hourString(timeUsed); 
+    timeStr += ":";
+    timeStr += rtc.minuteString(timeUsed); 
+    timeStr += ":";
+    timeStr += rtc.secondString(timeUsed); 
+  
+    lcd.print(timeStr);
+    
+    playedMin = rtc.minute(timeUsedPlay);
+    playedHours = rtc.hour(timeUsedPlay);
+     
+     lcd.setCursor(6, 0);
+     lcd.print("Tot: ");
+     if (playedHours < 10) {
+          lcd.print("0");}
+
+     lcd.print(rtc.hour(timeUsedPlay+timeUsedPlayTotal));
+      lcd.print(":");
+     if (playedMin < 10) {
+          lcd.print("0");}
+       
+       lcd.print(rtc.minute(timeUsedPlay+timeUsedPlayTotal));
       }
        rtc.setTimeZone(+1); // gmt offset
     
       lastTime = currentTime;
-      if(ongoingActivity!=forrigeAktivitet){
-        forrigeAktivitet = ongoingActivity;
-         Particle.publish("Action",timeStr);
-    }
+      if(ongoingActivity!=forrigeAktivitet)
+      {  
+          timeStr ="";
+          timeStr ="forrigeAktivitet";
+          timeStr += rtc.hourString(timeUsedPlay);
+          timeStr += ":";
+        timeStr += rtc.minuteString(timeUsedPlay);
+        
+          Particle.publish("Action",timeStr);
+          forrigeAktivitet = ongoingActivity;
+         }
     }    
  //   }
 }
